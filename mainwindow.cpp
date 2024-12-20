@@ -3,6 +3,7 @@
 #include <QtWidgets>
 #include "qcustomplot.h"
 #include <QtConcurrent>
+#include "graphinfo.h"
 
 QMap<int, GraphData> graphDataMap;
 
@@ -38,7 +39,7 @@ void MainWindow::initWindow(){
     mainLayout->addWidget(scrollArea, 1);  // Лейаут с элементами управления с левой стороны
     mainLayout->addWidget(plot, 3);  // График с правой стороны
     // Поля для ввода
-    meanLabel = new QLabel("Mean (μ):", this);
+    meanLabel = new QLabel("Mean (x'):", this);
     meanInput = new QDoubleSpinBox(this);
     meanInput->setDecimals(5);
     meanInput->setRange(-10.0, 10.0);
@@ -96,9 +97,6 @@ void MainWindow::initWindow(){
 
     connect(plotButton, &QPushButton::clicked, this, &MainWindow::plotButtonClicked);
 
-
-    //connect(plot, &QCustomPlot::selectionChangedByUser, this, &MainWindow::onSelectionChanged);//есть возможность по нажатию на график открывать его свойства
-
     setCentralWidget(mainWidget);
 }
 
@@ -107,6 +105,89 @@ void MainWindow::renamebuttons()
     
 }
 
+void MainWindow::addVerticalLines(GraphData& data) {
+    auto maingraph = data.graph->data();
+    GraphLines& dd = data.lines;
+    if (!dd.check()) {
+        dd.clear();
+        dd.lines.push_back(dd.lineEs = new QCPItemLine(plot));
+        dd.texts.push_back(dd.labelEs = new QCPItemText(plot));
+        dd.lines.push_back(dd.lineEi = new QCPItemLine(plot));
+        dd.texts.push_back(dd.labelEi = new QCPItemText(plot));
+        dd.lines.push_back(dd.lineMean = new QCPItemLine(plot));
+        dd.texts.push_back(dd.labelMean = new QCPItemText(plot));
+        dd.lines.push_back(dd.lineMinus3Sigma = new QCPItemLine(plot));
+        dd.texts.push_back(dd.labelminus3Sigma = new QCPItemText(plot));
+        dd.lines.push_back(dd.linePlus3Sigma = new QCPItemLine(plot));
+        dd.texts.push_back(dd.labelplus3Sigma = new QCPItemText(plot));
+    };
+    // Добавляем вертикальную линию в координате es
+    
+    dd.lineEs->start->setCoords(data.es, 0);     // Координаты начала линии
+    auto it = maingraph->findBegin(data.es);
+    dd.lineEs->end->setCoords(data.es, plot->yAxis->range().upper); // Координаты конца линии
+    dd.lineEs->setPen(QPen(Qt::red, 2, Qt::DashLine)); // Красная пунктирная линия
+
+    
+    dd.labelEs->position->setCoords(data.es, plot->yAxis->range().upper/2);
+    dd.labelEs->setText("es");
+    dd.labelEs->setFont(QFont("Arial", 10));
+    dd.labelEs->setColor(Qt::blue);
+
+    // Добавляем вертикальную линию в координате ei
+    
+    dd.lineEi->start->setCoords(data.ei, 0);
+    it = maingraph->findBegin(data.ei);
+    dd.lineEi->end->setCoords(data.ei, plot->yAxis->range().upper);
+    dd.lineEi->setPen(QPen(Qt::blue, 2, Qt::DashLine)); // Синяя пунктирная линия
+
+    
+    dd.labelEi->position->setCoords(data.ei, plot->yAxis->range().upper/2);
+    dd.labelEi->setText("ei");
+    dd.labelEi->setFont(QFont("Arial", 10));
+    dd.labelEi->setColor(Qt::blue);
+
+    // Добавляем вертикальную линию в -3sigma
+    double minus3Sigma = data.mean - 3 * data.sigma;
+    
+    dd.lineMinus3Sigma->start->setCoords(minus3Sigma, 0);
+    it = maingraph->findBegin(minus3Sigma);
+    dd.lineMinus3Sigma->end->setCoords(minus3Sigma, plot->yAxis->range().upper);
+    dd.lineMinus3Sigma->setPen(QPen(Qt::darkGreen, 2, Qt::DotLine)); // Тёмно-зелёная точечная линия
+
+    
+    dd.labelminus3Sigma->position->setCoords(minus3Sigma, plot->yAxis->range().upper/2);
+    dd.labelminus3Sigma->setText("-3q");
+    dd.labelminus3Sigma->setFont(QFont("Arial", 10));
+    dd.labelminus3Sigma->setColor(Qt::blue);
+
+    // Добавляем вертикальную линию в +3sigma
+    double plus3Sigma = data.mean + 3 * data.sigma;
+    
+    dd.linePlus3Sigma->start->setCoords(plus3Sigma, 0);
+    it = maingraph->findBegin(plus3Sigma);
+    dd.linePlus3Sigma->end->setCoords(plus3Sigma, plot->yAxis->range().upper);
+    dd.linePlus3Sigma->setPen(QPen(Qt::darkGreen, 2, Qt::DotLine)); // Тёмно-зелёная точечная линия
+
+    
+    dd.labelplus3Sigma->position->setCoords(plus3Sigma, plot->yAxis->range().upper/2);
+    dd.labelplus3Sigma->setText("3q");
+    dd.labelplus3Sigma->setFont(QFont("Arial", 10));
+    dd.labelplus3Sigma->setColor(Qt::blue);
+
+    dd.lineMean->start->setCoords(data.mean, 0);
+    it = maingraph->findBegin(data.mean);
+    dd.lineMean->end->setCoords(data.mean, plot->yAxis->range().upper);
+    dd.lineMean->setPen(QPen(Qt::darkGreen, 2, Qt::DotLine)); // Тёмно-зелёная точечная линия
+
+
+    dd.labelMean->position->setCoords(data.mean, plot->yAxis->range().upper/2);
+    dd.labelMean->setText("x'");
+    dd.labelMean->setFont(QFont("Arial", 10));
+    dd.labelMean->setColor(Qt::blue);
+    // Обновляем график
+    plot->replot();
+}
 
 void MainWindow::calcShading(int graphIndex) {
     // Основной график (предполагаем, что он уже добавлен)
@@ -150,7 +231,7 @@ void MainWindow::calcShading(int graphIndex) {
 }
 
 void MainWindow::buildGraphic(int graphIndex){
-    GraphData graphData = graphDataMap[graphIndex];
+    GraphData& graphData = graphDataMap[graphIndex];
     QVector<double> x, y;
     // Целевое количество точек
     const int targetPoints = 1000 / graphDataMap.size();
@@ -164,21 +245,16 @@ void MainWindow::buildGraphic(int graphIndex){
     }
     graphData.graph->setData(x, y);
     calcShading(graphIndex);
+    addVerticalLines(graphData);
 }
 
 void MainWindow::onXAxisRangeChanged(const QCPRange &newRange) {
     if(!plot->graph()) return;
-    QList<QFuture<void>> futures;
     for (auto& it : graphDataMap) {
         GraphData& data = it;
         data.xMax = newRange.upper;
         data.xMin = newRange.lower;
-        futures.append(QtConcurrent::run([&, data]() {
-            buildGraphic(data.id);  // buildGraphic возвращает вычисленные данные
-            }));
-    }
-    for (auto& future : futures) {
-        future.waitForFinished();
+        buildGraphic(data.id);  // buildGraphic возвращает вычисленные данные
     }
     plot->replot();
 }
@@ -188,6 +264,7 @@ void MainWindow::onYAxisRangeChanged(const QCPRange &newRange) {
 }
 
 void MainWindow::onSelectionChanged() {
+
 }
 void MainWindow::plotButtonClicked(){
     int graphIndex = plot->graphCount(); // Индекс нового графика
@@ -259,6 +336,13 @@ void MainWindow::plotButtonClicked(){
 
         }
     });
+    connect(editGraph, &QPushButton::clicked, [this, buttonContainer, graphIndex]() {
+        if (graphDataMap.find(graphIndex) != graphDataMap.end()) {
+            GraphData& data = graphDataMap[graphIndex];
+            GraphEditDialog* dialog = new GraphEditDialog(data, this);
+            dialog->exec();
+        }
+        });
     connect(deleteGraph, &QPushButton::clicked, [this, buttonContainer, graphIndex]() {
         QMessageBox::StandardButton reply;
         reply = QMessageBox::question(this, "Подтверждение удаления",
@@ -274,6 +358,7 @@ void MainWindow::plotButtonClicked(){
                 plot->removeGraph(it->graph);  // Удаляем график из plot
                 for (int i = 0; i < graphDataMap[graphIndex].shadingGraphs.size(); ++i) {//удаление штриховки под графиком
                     plot->removeGraph(graphDataMap[graphIndex].shadingGraphs[i].graph);
+                    graphDataMap[graphIndex].lines.clear();
                 }
                 graphDataMap.erase(it);  // Удаляем график из списка
             }
@@ -290,6 +375,7 @@ void MainWindow::plotButtonClicked(){
     ShadingGraph shad1{ plot->addGraph(), -3 * sigmaInput->value() + meanInput->value(),  xMinInput->value()};
     ShadingGraph shad2{ plot->addGraph(), xMaxInput->value(),  3 * sigmaInput->value() + meanInput->value() };
     std::vector<ShadingGraph>graphs{ shad1 ,shad2};
+    GraphLines lines;
     graphDataMap[graphIndex] = {graphIndex,
                                 plot->xAxis->range().lower, 
                                 plot->xAxis->range().upper,
@@ -298,8 +384,16 @@ void MainWindow::plotButtonClicked(){
                                 xMinInput->value(),
                                 xMaxInput->value(),
                                 plot->graph(graphIndex), 
-                                graphs
+                                graphs,
+                                lines
     };
+    connect(plot, &QCustomPlot::selectionChangedByUser, this, [this, graphIndex]() {
+        if (graphDataMap.find(graphIndex) != graphDataMap.end()) {
+            GraphData& data = graphDataMap[graphIndex];
+            GraphInfoDialog* dialog = new GraphInfoDialog(data, this);
+            dialog->exec();
+        }
+        });
     buildGraphic(graphIndex);
     plot->replot();
 }

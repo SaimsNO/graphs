@@ -6,17 +6,20 @@ set (SOURCES
     main.cpp
     mainwindow.cpp
     qcustomplot.cpp
+    graphinfo.cpp
 )
 
 set (HEADERS
     mainwindow.h
     qcustomplot.h
+    graphinfo.h
 )
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOGEN_BUILD_DIR "${CMAKE_BINARY_DIR}/generated_files")
+set(CMAKE_FIND_DEBUG_MODE TRUE)
 
 set(CMAKE_CXX_STANDARD 23) 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
